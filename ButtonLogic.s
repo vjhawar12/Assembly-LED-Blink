@@ -2,8 +2,8 @@
 ;
 ; Original: Copyright 2014 by Jonathan W. Valvano, valvano@mail.utexas.edu
 ;
-; Last modified by: Yaser M. Haddara
-; January 18, 2026
+; Last modified by: Vedant Jhawar
+; January 27, 2026
 ;
 ; Initial template for studio 1A and 1B
 ; This template has the structure for the basic steps required
@@ -224,3 +224,4 @@ turn_off
 	
 		ALIGN
 		END
+
