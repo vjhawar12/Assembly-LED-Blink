@@ -2,8 +2,8 @@
 ;
 ; Original: Copyright 2014 by Jonathan W. Valvano, valvano@mail.utexas.edu
 ;
-; Last modified by: Vedant Jhawar
-; January 27, 2026
+; Last modified by: Yaser M. Haddara
+; January 18, 2026
 ;
 ; Initial template for studio 1A and 1B
 ; This template has the structure for the basic steps required
@@ -35,8 +35,10 @@ GPIO_PORTN_DIR_R              EQU     0x40064400         ;Step 3: GPIO Port L DI
 GPIO_PORTN_DEN_R              EQU     0x4006451C         ;Step 4: GPIO Port L DEN Register Address
 GPIO_PORTN_DATA_R             EQU     0x400643FC         ;Step 5: GPIO Port L DATA Register Address
                               
-
-
+GPIO_PORTM_DIR_R              EQU     0x40063400         ;Step 3: GPIO Port L DIR Register Address
+GPIO_PORTM_DEN_R              EQU     0x4006351C         ;Step 4: GPIO Port L DEN Register Address
+GPIO_PORTM_DATA_R             EQU     0x400633FC         ;Step 5: GPIO Port L DATA Register Address
+                              
 
         AREA    |.text|, CODE, READONLY, ALIGN=2
         THUMB
@@ -146,6 +148,41 @@ PortN_Init
         BX LR               ; return from function 
 
 
+PortM_Init 
+		;STEP 1 Activate clock
+		;This means, set bit A in RCGCGPIO without changing any other bits
+		;In C pseudcode: SYSCTL_RCGCGPIO_R |= #0x400
+		LDR R1, =SYSCTL_RCGCGPIO_R		;Stores the address of the target register in R1
+		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
+		ORR R0,R0, #0x800				;Modifies the contents of R0 as needed
+		STR R0, [R1]					;Stores the new value back into the target register
+		
+		;STEP 2: Wait for Peripheral Ready
+		NOP
+		NOP
+		 
+		
+		;STEP 3: Make PL0 an input pin
+		;This means clear bit 0 in PortL Direction Register
+		;In C pseudocode: GPIO_PORTL_DIR_R &= !(#0x10)
+		LDR R1, =GPIO_PORTN_DIR_R		;Stores the address of the target register in R1
+		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
+		ORR R0,R0, #0x01				;Modifies the contents of R0 as needed
+		STR R0, [R1]					;Stores the new value back into the target register
+		 
+		;STEP 4: Enable PL0 for digital I/O
+		;This means set bit 0 in PortL Digital Enable Register
+		;In C pseudocode: GPIO_PORTL_DEN_R |= #0x1
+		LDR R1, =GPIO_PORTN_DEN_R		;Stores the address of the target register in R1
+		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
+		ORR R0,R0, #0x01				;Modifies the contents of R0 as needed
+		STR R0, [R1]					;Stores the new value back into the target register
+ 
+
+        BX LR               ; return from function 
+
+
+
 Start
         BL  PortF_Init
         BL  PortL_Init
@@ -158,14 +195,14 @@ detect_off
 		LDR R2, =GPIO_PORTL_DATA_R
 		LDR R3, [R2]
 		AND R3, R3, #0x1
-		CMP R3, 0
+		CMP R3, #0
 		BX LR
 		
 
 keep_on 
 		LDR R1, =GPIO_PORTN_DATA_R ;Stores the address of the target register in R1 
 		LDR R0, [R1] ;Dereferences R1 to put the contents of the target register in R0 
-		ORR R0,R0, #0x2 ;Modifies the contents of R0 as needed 
+		ORR R0,R0, #0x1 ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register 
 		
 		BL detect_off
@@ -177,7 +214,7 @@ keep_on
 turn_off
 		LDR R1, =GPIO_PORTN_DATA_R ;Stores the address of the target register in R1 
 		LDR R0, [R1] ;Dereferences R1 to put the contents of the target register in R0 
-		AND R0,R0, #0xFD ;Modifies the contents of R0 as needed 
+		AND R0,R0, #0xFE ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register
 	
 		BL detect_off
