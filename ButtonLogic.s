@@ -193,7 +193,7 @@ Start
 		
 		
 detect_off
-		LDR R2, =GPIO_PORTL_DATA_R
+		LDR R2, =GPIO_PORTM_DATA_R
 		LDR R3, [R2]
 		AND R3, R3, #0x1
 		CMP R3, #0
@@ -201,9 +201,9 @@ detect_off
 		
 
 keep_on 
-		LDR R1, =GPIO_PORTM_DATA_R ;Stores the address of the target register in R1 
+		LDR R1, =GPIO_PORTN_DATA_R ;Stores the address of the target register in R1 
 		LDR R0, [R1] ;Dereferences R1 to put the contents of the target register in R0 
-		ORR R0,R0, #0x1 ;Modifies the contents of R0 as needed 
+		ORR R0,R0, #0x02 ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register 
 		
 		BL detect_off
@@ -213,9 +213,9 @@ keep_on
 		
 
 turn_off
-		LDR R1, =GPIO_PORTM_DATA_R ;Stores the address of the target register in R1 
+		LDR R1, =GPIO_PORTN_DATA_R ;Stores the address of the target register in R1 
 		LDR R0, [R1] ;Dereferences R1 to put the contents of the target register in R0 
-		AND R0,R0, #0xFE ;Modifies the contents of R0 as needed 
+		AND R0,R0, #0xFD ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register
 	
 		BL detect_off
@@ -224,4 +224,3 @@ turn_off
 	
 		ALIGN
 		END
-
