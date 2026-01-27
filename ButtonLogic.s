@@ -2,8 +2,8 @@
 ;
 ; Original: Copyright 2014 by Jonathan W. Valvano, valvano@mail.utexas.edu
 ;
-; Last modified by: Yaser M. Haddara
-; January 18, 2026
+; Last modified by: Vedant Jhawar
+; January 27, 2026
 ;
 ; Initial template for studio 1A and 1B
 ; This template has the structure for the basic steps required
@@ -157,7 +157,9 @@ Start
 detect_off
 		LDR R2, =GPIO_PORTL_DATA_R
 		LDR R3, [R2]
+		AND R3, R3, #0x1
 		CMP R3, 0
+		BX LR
 		
 
 keep_on 
@@ -166,7 +168,7 @@ keep_on
 		ORR R0,R0, #0x2 ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register 
 		
-		B detect_off
+		BL detect_off
 		BEQ turn_off
 		B keep_on
 
@@ -178,7 +180,7 @@ turn_off
 		AND R0,R0, #0xFD ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register
 	
-		B detect_off
+		BL detect_off
 		BEQ turn_off
 		B keep_on
 	
