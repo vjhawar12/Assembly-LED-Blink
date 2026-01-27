@@ -165,7 +165,7 @@ PortM_Init
 		;STEP 3: Make PL0 an input pin
 		;This means clear bit 0 in PortL Direction Register
 		;In C pseudocode: GPIO_PORTL_DIR_R &= !(#0x10)
-		LDR R1, =GPIO_PORTN_DIR_R		;Stores the address of the target register in R1
+		LDR R1, =GPIO_PORTM_DIR_R		;Stores the address of the target register in R1
 		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
 		ORR R0,R0, #0x01				;Modifies the contents of R0 as needed
 		STR R0, [R1]					;Stores the new value back into the target register
@@ -173,7 +173,7 @@ PortM_Init
 		;STEP 4: Enable PL0 for digital I/O
 		;This means set bit 0 in PortL Digital Enable Register
 		;In C pseudocode: GPIO_PORTL_DEN_R |= #0x1
-		LDR R1, =GPIO_PORTN_DEN_R		;Stores the address of the target register in R1
+		LDR R1, =GPIO_PORTM_DEN_R		;Stores the address of the target register in R1
 		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
 		ORR R0,R0, #0x01				;Modifies the contents of R0 as needed
 		STR R0, [R1]					;Stores the new value back into the target register
@@ -187,6 +187,7 @@ Start
         BL  PortF_Init
         BL  PortL_Init
         BL 	PortN_Init
+        BL 	PortM_Init
 		
 		B keep_on
 		
@@ -200,7 +201,7 @@ detect_off
 		
 
 keep_on 
-		LDR R1, =GPIO_PORTN_DATA_R ;Stores the address of the target register in R1 
+		LDR R1, =GPIO_PORTM_DATA_R ;Stores the address of the target register in R1 
 		LDR R0, [R1] ;Dereferences R1 to put the contents of the target register in R0 
 		ORR R0,R0, #0x1 ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register 
@@ -212,7 +213,7 @@ keep_on
 		
 
 turn_off
-		LDR R1, =GPIO_PORTN_DATA_R ;Stores the address of the target register in R1 
+		LDR R1, =GPIO_PORTM_DATA_R ;Stores the address of the target register in R1 
 		LDR R0, [R1] ;Dereferences R1 to put the contents of the target register in R0 
 		AND R0,R0, #0xFE ;Modifies the contents of R0 as needed 
 		STR R0, [R1] ;Stores the new value back into the target register
