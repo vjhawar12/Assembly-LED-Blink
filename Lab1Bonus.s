@@ -39,7 +39,16 @@ GPIO_PORTM_DATA_R             EQU     0x400633FC         ;Step 5: GPIO Port L DA
 DELAY_CONST					  EQU	  200
 PM2_MASK					  EQU	  0x04
 PM0_MASK					  EQU	  0x01
+PN1_MASK					  EQU     0x02
+PN0_MASK					  EQU     0x01
+PN0_PN1_MASK				  EQU	  0x03
+PF4_MASK					  EQU     0x10
+PF0_MASK					  EQU     0x01
+PF0_PF4_MASK				  EQU     0x11
 LOCK_CODE			          EQU     0b1011
+PRESSED_LEVEL				  EQU     PM2_MASK ; for active hi, swap to 0x00 for active lo
+RELEASED_LEVEL				  EQU     0x00
+
 
 ; This assumes its active hi, swap PRESSED and RELEASED here if its active lo
 
@@ -66,7 +75,7 @@ PortF_Init
 		;In C pseudocode: GPIO_PORTF_DIR_R |= #0x10
 		LDR R1, =GPIO_PORTF_DIR_R		;Stores the address of the target register in R1
 		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x11				;Modifies the contents of R0 as needed
+		ORR R0,R0, #PF0_PF4_MASK				;Modifies the contents of R0 as needed
 		STR R0, [R1]					;Stores the new value back into the target register
 						;Stores the new value back into the target register
 		 
@@ -75,7 +84,7 @@ PortF_Init
 		;In C pseudocode: GPIO_PORTF_DEN_R |= #0x10
 		LDR R1, =GPIO_PORTF_DEN_R		;Stores the address of the target register in R1
 		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x11				;Modifies the contents of R0 as needed
+		ORR R0,R0, #PF0_PF4_MASK				;Modifies the contents of R0 as needed
 		STR R0, [R1]					;Stores the new value back into the target register
  
 
@@ -101,7 +110,7 @@ PortN_Init
 		;In C pseudocode: GPIO_PORTL_DIR_R &= !(#0x10)
 		LDR R1, =GPIO_PORTN_DIR_R		;Stores the address of the target register in R1
 		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x03				;Modifies the contents of R0 as needed
+		ORR R0,R0, #PN0_PN1_MASK				;Modifies the contents of R0 as needed
 		STR R0, [R1]					;Stores the new value back into the target register
 		 
 		;STEP 4: Enable PL0 for digital I/O
@@ -109,7 +118,7 @@ PortN_Init
 		;In C pseudocode: GPIO_PORTL_DEN_R |= #0x1
 		LDR R1, =GPIO_PORTN_DEN_R		;Stores the address of the target register in R1
 		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x03				;Modifies the contents of R0 as needed
+		ORR R0,R0, #PN0_PN1_MASK				;Modifies the contents of R0 as needed
 		STR R0, [R1]					;Stores the new value back into the target register
  
 
@@ -154,8 +163,12 @@ PortM_Init
 Reset
 		LDR R5, =0
 		LDR R4, =0
+		LDR R0, =GPIO_PORTN_DATA_R
+		LDR R1, [R0]
+		BIC R1, R1, #PN0_MASK
+		STR R1, [R0]
 		BL  UpdateStateLEDs
-		B WaitForLo
+		B WaitForReleased
 
 Start
         BL 	PortM_Init
@@ -174,23 +187,24 @@ Delay
 		BX LR
 		
 
-WaitForLo
-		LDR R0, =GPIO_PORTM_DATA_R
-		LDR R1, [R0]
-		AND R1, R1, #PM2_MASK
-		CMP R1, #0x00 ; checking if clock is on LO edge
-		BEQ WaitForHi ; if so check for HI
-		BL Delay
-		B WaitForLo ; if not keep waiting
 
-WaitForHi
+WaitForReleased
 		LDR R0, =GPIO_PORTM_DATA_R
 		LDR R1, [R0]
 		AND R1, R1, #PM2_MASK
-		CMP R1, PM2_MASK ; checking if clock is on HI edge
+		CMP R1, #RELEASED_LEVEL ; checking if clock is on LO edge
+		BEQ WaitForPressed ; if so check for HI
+		BL Delay
+		B WaitForReleased ; if not keep waiting
+
+WaitForPressed
+		LDR R0, =GPIO_PORTM_DATA_R
+		LDR R1, [R0]
+		AND R1, R1, #PM2_MASK
+		CMP R1, #PRESSED_LEVEL ; checking if clock is on HI edge
 		BEQ AcceptInput ; if so then we're in between LO and HI 
 		BL Delay
-		B WaitForHi
+		B WaitForPressed
 
 
 GetValue
@@ -199,11 +213,10 @@ GetValue
 		AND R8, R8, #0x01
 		BX LR
 		
-Fail
-		BL  AllOff        
+Fail	
 		LDR R4, =0        
 		BL  UpdateStateLEDs
-		B   WaitForLo
+		B   WaitForReleased
 		
 
 AcceptInput
@@ -222,11 +235,9 @@ UpdateStateLEDs
 		LDR R2, =GPIO_PORTF_DATA_R
 		LDR R1, [R2]
 		
-		BIC R1, R1, #0x11 ; clearing both PF0 and PF4
+		BIC R1, R1, #PF0_PF4_MASK ; clearing both PF0 and PF4
 		ORR R1, R1, R3 ; setting PF0
 		STR R1, [R2]
-		
-		AND R5, R4, #0x02  ; rotating PF4
 		LSL R5, R5, #0x03 
 	
 		ORR R1, R1, R5 ; setting PF4
@@ -236,26 +247,23 @@ UpdateStateLEDs
 		
 Increment ; if increment reaches 4 then 4 correct digits were entered, D1 -> D3 -> D4
 		ADD R4, #1
-		BL UpdateStateLEDs
 		CMP R4, #4
 		BEQ Win
-		BNE WaitForLo
+		BL UpdateStateLEDs
+		BNE WaitForReleased
 		
 Win ; light up D2 and turn off D1, D3, and D4
 		LDR R2, =GPIO_PORTN_DATA_R
 		LDR R1, [R2]
-		AND R1, R1, #0xFD ; turning off D1
+		BIC R1, R1, #PN1_MASK ; turning off D1
 		STR R1, [R2]
 				
-		ORR R1, R1, #0x01 ; turning on D2
+		ORR R1, R1, #PN0_MASK ; turning on D2
 		STR R1, [R2]
 		
 		LDR R2, =GPIO_PORTF_DATA_R
 		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D4
-		STR R1, [R2]
-		
-		AND R1, R1, #0xFD ; turning off D3
+		BIC R1, R1, #PF0_PF4_MASK
 		STR R1, [R2]
 		
 		B Win
