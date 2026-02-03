@@ -35,7 +35,15 @@ GPIO_PORTM_DATA_R             EQU     0x400633FC         ;Step 5: GPIO Port L DA
 DELAY_CONST					  EQU	  200
 PM2_MASK					  EQU	  0x04
 PM0_MASK					  EQU	  0x01
+PN1_MASK					  EQU     0x02
+PN0_MASK					  EQU     0x01
+PN0_PN1_MASK				  EQU	  0x03
+PF4_MASK					  EQU     0x10
+PF0_MASK					  EQU     0x01
+PF0_PF4_MASK				  EQU     0x11
 LOCK_CODE			          EQU     0b1011
+PRESSED_LEVEL				  EQU     PM2_MASK ; for active hi, swap to 0x00 for active lo
+RELEASED_LEVEL				  EQU     0x00
 
 ; This assumes its active hi, swap PRESSED and RELEASED here if its active lo
 
@@ -116,7 +124,7 @@ PortM_Init
 Reset
 		LDR R5, =0
 		LDR R4, =0
-		B WaitForLo
+		B WaitForReleased
 
 Start
         BL 	PortM_Init
@@ -136,23 +144,25 @@ Delay
 		
 		
 
-WaitForLo
-		LDR R0, =GPIO_PORTM_DATA_R
-		LDR R1, [R0]
-		AND R1, R1, #PM2_MASK
-		CMP R1, #0x00 ; checking if clock is on LO edge
-		BEQ WaitForHi ; if so check for HI
-		BL Delay
-		B WaitForLo ; if not keep waiting
 
-WaitForHi
+WaitForReleased
 		LDR R0, =GPIO_PORTM_DATA_R
 		LDR R1, [R0]
 		AND R1, R1, #PM2_MASK
-		CMP R1, PM2_MASK ; checking if clock is on HI edge
+		CMP R1, #RELEASED_LEVEL ; checking if clock is on LO edge
+		BEQ WaitForPressed ; if so check for HI
+		BL Delay
+		B WaitForReleased ; if not keep waiting
+
+WaitForPressed
+		LDR R0, =GPIO_PORTM_DATA_R
+		LDR R1, [R0]
+		AND R1, R1, #PM2_MASK
+		CMP R1, #PRESSED_LEVEL ; checking if clock is on HI edge
 		BEQ AcceptInput ; if so then we're in between LO and HI 
 		BL Delay
-		B WaitForHi
+		B WaitForPressed
+
 
 
 GetValue
@@ -165,7 +175,7 @@ GetValue
 AcceptInput
 		LDR R2, =GPIO_PORTM_DATA_R
 		LDR R3, [R2]
-		AND R3, R3, #PM0_MASK
+		AND R3, R3, #PM0_MASK ; change to EOR if active lo else keep AND
 		BL GetValue
 		CMP R3, R8 ; if equal then first digit entered is right
 		BEQ Increment
@@ -175,7 +185,7 @@ Increment ; if increment reaches 4 then 4 correct digits were entered
 		ADD R4, #1
 		CMP R4, #4
 		BEQ Win
-		BNE WaitForLo
+		BNE WaitForReleased
 		
 Win ; light up D2 and turn off D1
 		LDR R2, =GPIO_PORTN_DATA_R
