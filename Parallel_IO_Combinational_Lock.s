@@ -2,181 +2,195 @@
 ;
 ; Original: Copyright 2014 by Jonathan W. Valvano, valvano@mail.utexas.edu
 ;
-; Last modified by: Vedant Jhawar
-; January 27, 2026
-;
-; Initial template for studio 1A and 1B
-; This template has the structure for the basic steps required
-; to configure and use PF4 for digital I/O
-; 
-; Studio 1A: objective is to switch on D3
-; Students need to modify code for Steps 3, 4, and 5
-;
-; Studio 1B: objective is to use a pushbutton to control D3
-; Students need to add code to configure Port L
-; then add code to read Port L and control D3 
+; Modified by: Yaser M. Haddara
+; January 28, 2023
+; Program for studio 2
+; Initial template: implement a combinational lock using FSM
+; Goal: implement a sequential lock using FSM
 ;
 ; McMaster University, Comp Eng 2DX3
 ; Further resources: Valvano textbook, Chs. 3 & 4
+;
 
 ;ADDRESS SETUP
 ;Define your I/O Port Addresses Here
 
-SYSCTL_RCGCGPIO_R             EQU     0x400FE608         ;Step 1: GPIO Run Mode Clock Gating Control Register Address
+SYSCTL_RCGCGPIO_R       EQU		0x400FE608         ;Step 1: GPIO Run Mode Clock Gating Control Register Address
+
+GPIO_PORTN_DIR_R		EQU 	0x40064400  ;GPIO Port N Direction Register address 
+GPIO_PORTN_DEN_R        EQU 	0x4006451C  ;GPIO Port N Digital Enable Register address
+GPIO_PORTN_DATA_R       EQU 	0x400643FC  ;GPIO Port N Data Register address
 	
-GPIO_PORTN_DIR_R              EQU     0x40064400         ;Step 3: GPIO Port L DIR Register Address
-GPIO_PORTN_DEN_R              EQU     0x4006451C         ;Step 4: GPIO Port L DEN Register Address
-GPIO_PORTN_DATA_R             EQU     0x400643FC         ;Step 5: GPIO Port L DATA Register Address
-                              
-GPIO_PORTM_DIR_R              EQU     0x40063400         ;Step 3: GPIO Port L DIR Register Address
-GPIO_PORTM_DEN_R              EQU     0x4006351C         ;Step 4: GPIO Port L DEN Register Address
-GPIO_PORTM_DATA_R             EQU     0x400633FC         ;Step 5: GPIO Port L DATA Register Address
-
-DELAY_CONST					  EQU	  200
-PM3_MASK					  EQU	  0x08
-LOCK_CODE					  EQU     0x07
-
-; 	change to pressed 0x00 and released 0x08 if active lo
+GPIO_PORTM_DIR_R        EQU		0x40063400  ;GPIO Port M Direction Register Address 
+GPIO_PORTM_DEN_R        EQU		0x4006351C  ;GPIO Port M Direction Register Address 
+GPIO_PORTM_DATA_R       EQU		0x400633FC  ;GPIO Port M Data Register Address      
+GPIO_PORTM_PDR_R		EQU		0x40063514	;GPIO Port M Pull-Down Resistor Register Address
 	
-PRESSED						  EQU	  0x08 
-RELEASED					  EQU	  0x00
+;Define constants
 
-; This assumes its active hi, swap PRESSED and RELEASED here if its active lo
+COMBINATION			EQU		2_111	; this is the sequential combination expected - does NOT include the clock
+									; the sequential combination is read RIGHT-TO-LEFT (110 means 0 followed by 1 followed by 1)
+COMBINATION_LENGTH	EQU		3		; number of digits in combination (decimal number)
+CLOCK_BIT			EQU		2_1000	; clock is on PM2                            
+
+
 
         AREA    |.text|, CODE, READONLY, ALIGN=2
         THUMB
         EXPORT Start
 
-
-PortN_Init 
-		;STEP 1 Activate clock
-		;This means, set bit A in RCGCGPIO without changing any other bits
-		;In C pseudcode: SYSCTL_RCGCGPIO_R |= #0x400
-		LDR R1, =SYSCTL_RCGCGPIO_R		;Stores the address of the target register in R1
-		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x1000				;Modifies the contents of R0 as needed
-		STR R0, [R1]					;Stores the new value back into the target register
-		
-		;STEP 2: Wait for Peripheral Ready
-		NOP
-		NOP
-		 
-		
-		;STEP 3: Make PL0 an input pin
-		;This means clear bit 0 in PortL Direction Register
-		;In C pseudocode: GPIO_PORTL_DIR_R &= !(#0x10)
-		LDR R1, =GPIO_PORTN_DIR_R		;Stores the address of the target register in R1
-		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x03				;Modifies the contents of R0 as needed
-		STR R0, [R1]					;Stores the new value back into the target register
-		 
-		;STEP 4: Enable PL0 for digital I/O
-		;This means set bit 0 in PortL Digital Enable Register
-		;In C pseudocode: GPIO_PORTL_DEN_R |= #0x1
-		LDR R1, =GPIO_PORTN_DEN_R		;Stores the address of the target register in R1
-		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x03				;Modifies the contents of R0 as needed
-		STR R0, [R1]					;Stores the new value back into the target register
- 
-
-        BX LR               ; return from function 
-
-
+;Function PortM_Init
+;Enable Port M and set bits PM0-PM2 for digital input
 PortM_Init 
-		;STEP 1 Activate clock
-		;This means, set bit A in RCGCGPIO without changing any other bits
-		;In C pseudcode: SYSCTL_RCGCGPIO_R |= #0x400
-		LDR R1, =SYSCTL_RCGCGPIO_R		;Stores the address of the target register in R1
-		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x800				;Modifies the contents of R0 as needed
-		STR R0, [R1]					;Stores the new value back into the target register
+		;STEP 1 Activate clock (Set bit 11 in RCGCGPIO; In C pseudcode: SYSCTL_RCGCGPIO_R |= #0x800)
+		 LDR R1, =SYSCTL_RCGCGPIO_R		;Stores the address of the RCGCGPIO register in R1
+		 LDR R0, [R1]					;Dereferences R1 to put the contents of the RCGCGPIO register in R0
+		 ORR R0,R0, #0x800				;Modifies the contents of R0 to set bit 11 without changing other bits
+		 STR R0, [R1]					;Stores the new value into the RCGCGPIO register
 		
 		;STEP 2: Wait for Peripheral Ready
-		NOP
-		NOP
+		 NOP
+		 NOP
+		 	
+		;STEP 3: Set Port Direction 
+		LDR R1, =GPIO_PORTM_DIR_R		;Load the memory address of the GPIODIR Port M Register into R1 (pointer)
+		LDR R0, [R1]					;Load the contents from the memory address of GPIODIR Port M Register into R0
+		BIC R0, R0, #0x0F			;Modify the contents of R0 to clear bits 0 and 2 without changing other bits
+		STR R0, [R1]					;Store what is in R0 into address pointed by R1 
 		 
-		
-		;STEP 3: Make PM[0-3] input pins
-		;This means clear bits 0-3 in PortM Direction Register
-		;In C pseudocode: GPIO_PORTL_DIR_R &= !(#0x10)
-		LDR R1, =GPIO_PORTM_DIR_R		;Stores the address of the target register in R1
-		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		AND R0,R0, #0xF0				;Modifies the contents of R0 as needed
-		STR R0, [R1]					;Stores the new value back into the target register
-		 
-		;STEP 4: Enable PL0 for digital I/O
-		;This means set bit 0 in PortL Digital Enable Register
-		;In C pseudocode: GPIO_PORTL_DEN_R |= #0x1
-		LDR R1, =GPIO_PORTM_DEN_R		;Stores the address of the target register in R1
-		LDR R0, [R1]					;Dereferences R1 to put the contents of the target register in R0
-		ORR R0,R0, #0x0F				;Modifies the contents of R0 as needed
-		STR R0, [R1]					;Stores the new value back into the target register
- 
+		;STEP 4: Enable Digital Functioning 
+		LDR R1, =GPIO_PORTM_DEN_R		;Load the memory address of the GPIODEN Port M Register into R1 (pointer)
+		LDR R0, [R1]					;Load the contents from the memory address of GPIODEN Port M Register into R0
+		ORR R0, R0, #0x0F				;Modify the contents of R0 to set bits 0 and 2 without changing other bits
+		STR R0, [R1]					;Store what is in R0 into address pointed by R1 
 
+		
         BX LR               ; return from function 
 
-; Assuming active high button
+;Function PortN_Init
+;Enable PortN and set bits PN0 and PN1 for digital output
+PortN_Init 
+		;STEP 1 Activate clock (Set bit 12 in RCGCGPIO; In C pseudcode: SYSCTL_RCGCGPIO_R |= #0x1000)
+		 LDR R1, =SYSCTL_RCGCGPIO_R		;Stores the address of the RCGCGPIO register in R1
+		 LDR R0, [R1]					;Dereferences R1 to put the contents of the RCGCGPIO register in R0
+		 ORR R0,R0, #0x1000				;Modifies the contents of R0 to set bit 12 without changing other bits
+		 STR R0, [R1]					;Stores the new value into the RCGCGPIO register
+		
+		;STEP 2: Wait for Peripheral Ready
+		 NOP
+		 NOP
+		 
+		
+		;STEP 3: Set Port Direction 
+		LDR R1, =GPIO_PORTN_DIR_R		;Load the memory address of the GPIODIR Port N Register into R1 (pointer)
+		LDR R0, [R1]					;Load the contents from the memory address of GPIODIR Port N Register into R0
+		ORR R0, R0, #0x3				;Modify the contents of R0 to set bits 0 and 1 without changing other bits
+		STR R0, [R1]					;Store what is in R0 into address pointed by R1 
+		 
+		;STEP 4: Enable Digital Functioning 
+		LDR R1, =GPIO_PORTN_DEN_R		;Load the memory address of the GPIODEN Port N Register into R1 (pointer)
+		LDR R0, [R1]					;Load the contents from the memory address of GPIODEN Port N Register into R0
+		ORR R0, R0, #0x3				;Modify the contents of R0 to set bits 0 and 1 without changing other bits
+		STR R0, [R1]					;Store what is in R0 into address pointed by R1 
 
-Start
-        BL 	PortM_Init
-		BL 	PortN_Init
-		LDR R3, =DELAY_CONST
-		LDR R1, =0
-		B Delay
-		
-		
-WaitForButtonRelease
-		LDR R4, =GPIO_PORTM_DATA_R
-		LDR R5, [R4]
-		AND R5, R5, PM3_MASK
-		CMP R5, RELEASED
-		BEQ CheckButtonPress
-		BNE WaitForButtonRelease
-		
-Delay
-		ADD R1, R1, #1	
-		CMP R1, R3
-		BEQ WaitForButtonRelease
-		BNE Delay
-		
+        BX LR               ; return from function 
+       
 
-CheckButtonPress
-		LDR R2, =GPIO_PORTM_DATA_R
-		LDR R0, [R2]
-		AND R0, R0, PM3_MASK
-		CMP R0, PRESSED
-		BEQ EnterCode
-		BNE CheckButtonPress
+WaitForClockHigh 
+		LDR R1, =GPIO_PORTM_DATA_R		;Load the memory address of the GPIODATA Port M Register into R1 (pointer)
+		LDR R0, [R1]					;Load the contents from the memory address of GPIODATA Port M Register into R0
+		AND R2, R0, #CLOCK_BIT			;Stores result in R2 to avoid changing R0. Result is 0 iff the clock bit is 0.
+										;The 'S' modifier updates the flags. If result is 0, Z == 1 and condition EQ is true.
+		BEQ WaitForClockHigh			;If it's 0, keep waiting
+
+		LDR R7, =1200000
+Debounce
+		SUBS R7, R7, #1
+		BNE Debounce
 		
+		BX LR
+
+WaitForClockLow 
+		LDR R1, =GPIO_PORTM_DATA_R		;Load the memory address of the GPIODATA Port M Register into R1 (pointer)
+		LDR R0, [R1]					;Load the contents from the memory address of GPIODATA Port M Register into R0
+		AND R2, R0, #CLOCK_BIT			;Stores result in R2 to avoid changing R0. Result is 0 iff the clock bit is 0.
+										;The 'S' modifier updates the flags. If result is 0, Z == 1 and condition EQ is true.
+		BNE WaitForClockLow				;If it's not 0, keep waiting
+		BX LR
+
+
+Start 
+	    BL PortM_Init       ; call and execute PortF_Init
+		BL PortN_Init		; call and execute PortL_Init
+
+; Variables
+; - R1 & R2 are used in the different functions so I avoid using them in the main program
+; - R0 is also used in the function calls but it will always hold the latest data from PORT M
+; - R4	the number of expected inputs to come
+; - R5	the remaining portion of the combination to be entered
+; - R6	temporary variable to compare with the most recently entered bit
+
+Locked_State
+		; Outputs
+		LDR R1, =GPIO_PORTN_DATA_R		
+		LDR R0, [R1]					
+		ORR R0, R0, #0x01				;Set bit 0 - PN0 controls D2, ON for Locked
+		BIC R0, R0, #0x02				;Clear bit 1 - PN1 controls D1, OFF for Locked
+		STR R0, [R1]					
+
+		; Input
+		BL WaitForClockLow
+		BL WaitForClockHigh				;when we return from this call, R0 bit 0 is the input
 		
-EnterCode
-		LDR R1, =GPIO_PORTM_DATA_R
-		LDR R0, [R1]
-		AND R0, R0, #0x07
-		CMP R0, #LOCK_CODE
-		BEQ Success
-		B Fail
+		; State transition
+		LDR R4, =COMBINATION_LENGTH
+		LDR R5, =COMBINATION
+		AND R6, R5, #1					;only want to look at next bit
+		AND R0, R0, #1					;only want to look at input
+		CMP R0, R6
+		BNE Locked_State
 		
+		LSR  R5, R5, #1      ; or LSRS if you want flags updated
+		SUBS R4, R4, #1
 		
-Success
-		LDR R2, =GPIO_PORTN_DATA_R
-		LDR R3, [R2]
-		ORR R3, R3, #0x01
-		AND R3, R3, #0xFD
-		STR R3, [R2]
-		LDR R1, =0
-		LDR R3, =DELAY_CONST
-		B Delay
+		BEQ Unlocked_State
 		
+Intermediate_State								; We get here if (1) last input was correct; and (2) there are still inputs expected
+		; Outputs
+		LDR R1, =GPIO_PORTN_DATA_R		
+		LDR R0, [R1]					
+		ORR R0, R0, #0x01				;Set bit 0 - PN0 controls D2, ON for Locked
+		BIC R0, R0, #0x02				;Clear bit 1 - PN1 controls D1, OFF for Locked
+		STR R0, [R1]					
+
+		; Input
+		BL WaitForClockLow
+		BL WaitForClockHigh				;when we return from this call, R0 bit 0 is the input
 		
-Fail
-		LDR R2, =GPIO_PORTN_DATA_R
-		LDR R3, [R2]
-		ORR R3, R3, #0x02
-		AND R3, R3, #0xFE
-		STR R3, [R2]
-		LDR R1, =0
-		LDR R3, =DELAY_CONST
-		B Delay
+		; State transition
+		AND R6, R5, #1					;only want to look at next bit
+		AND R0, R0, #1					;only want to look at input
+		CMP R0, R6
+		BNE Locked_State
 		
+		LSR  R5, R5, #1      ; or LSRS if you want flags updated
+		SUBS R4, R4, #1
+		BNE Intermediate_State
+
+Unlocked_State
+		; Outputs
+		LDR R1, =GPIO_PORTN_DATA_R		
+		LDR R0, [R1]					
+		BIC R0, R0, #0x01				;Clear bit 0 - PN0 controls D2, OFF for unLocked
+		ORR R0, R0, #0x02				;Set bit 1 - PN1 controls D1, ON for unLocked
+		STR R0, [R1]					
 		
+		; Input
+		BL WaitForClockLow
+		BL WaitForClockHigh				;when we return from this call, R0 bit 0 is the input
+		
+		; State transition
+		B Locked_State
+		
+		ALIGN               ; directive for assembly			
+        END                 ; End of function 
