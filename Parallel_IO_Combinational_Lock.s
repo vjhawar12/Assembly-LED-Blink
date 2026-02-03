@@ -154,11 +154,11 @@ EnterCode
 		LDR R0, [R1]
 		AND R0, R0, #0x07
 		CMP R0, #LOCK_CODE
-		BEQ D2OnD1Off
-		BNE D1OnD2Off
+		BEQ Success
+		B Fail
 		
 		
-D2OnD1Off
+Success
 		LDR R2, =GPIO_PORTN_DATA_R
 		LDR R3, [R2]
 		ORR R3, R3, #0x01
@@ -169,7 +169,7 @@ D2OnD1Off
 		B Delay
 		
 		
-D1OnD2Off
+Fail
 		LDR R2, =GPIO_PORTN_DATA_R
 		LDR R3, [R2]
 		ORR R3, R3, #0x02
