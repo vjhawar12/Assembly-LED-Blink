@@ -200,10 +200,10 @@ GetValue
 		BX LR
 		
 Fail
-    BL  AllOff        
-    LDR R4, =0        
-    BL  UpdateStateLEDs
-    B   WaitForLo
+		BL  AllOff        
+		LDR R4, =0        
+		BL  UpdateStateLEDs
+		B   WaitForLo
 		
 
 AcceptInput
@@ -215,105 +215,22 @@ AcceptInput
 		BEQ Increment
 		BNE Fail
 
-
-AllOff
-		LDR R2, =GPIO_PORTN_DATA_R
-		LDR R1, [R2]
-		AND R1, R1, #0xFD ; turning off D1
-		STR R1, [R2]
-		
-		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D2
-		STR R1, [R2]
+UpdateStateLEDs		
+		AND R3, R4, #0x01 ; F0
+		AND R5, R4, #0x02 ; F4
 		
 		LDR R2, =GPIO_PORTF_DATA_R
 		LDR R1, [R2]
-		AND R1, R1, #0xEF ; turning off D3
+		
+		BIC R1, R1, #0x11 ; clearing both PF0 and PF4
+		ORR R1, R1, R3 ; setting PF0
 		STR R1, [R2]
 		
-		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D4
+		AND R5, R4, #0x02  ; rotating PF4
+		LSL R5, R5, #0x03 
+	
+		ORR R1, R1, R5 ; setting PF4
 		STR R1, [R2]
-		
-		BX LR
-
-D4OnD3Off
-		LDR R2, =GPIO_PORTN_DATA_R
-		LDR R1, [R2]
-		AND R1, R1, #0xFD ; turning off D1
-		STR R1, [R2]
-		
-		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D2
-		STR R1, [R2]
-		
-		LDR R2, =GPIO_PORTF_DATA_R
-		LDR R1, [R2]
-		AND R1, R1, #0xEF ; turning off D3
-		STR R1, [R2]
-		
-		LDR R1, [R2]
-		ORR R1, R1, #0x01 ; turning on D4
-		STR R1, [R2]
-		
-		BX LR
-		
-D4OffD3On
-		LDR R2, =GPIO_PORTN_DATA_R
-		LDR R1, [R2]
-		AND R1, R1, #0xFD ; turning off D1
-		STR R1, [R2]
-		
-		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D2
-		STR R1, [R2]
-		
-		LDR R2, =GPIO_PORTF_DATA_R
-		LDR R1, [R2]
-		ORR R1, R1, #0x10 ; turning on D3
-		STR R1, [R2]
-		
-		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D4
-		STR R1, [R2]
-		
-		BX LR
-
-		
-D4OnD3On
-		LDR R2, =GPIO_PORTN_DATA_R
-		LDR R1, [R2]
-		AND R1, R1, #0xFD ; turning off D1
-		STR R1, [R2]
-		
-		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D2
-		STR R1, [R2]
-		
-		LDR R2, =GPIO_PORTF_DATA_R
-		LDR R1, [R2]
-		ORR R1, R1, #0x10 ; turning on D3
-		STR R1, [R2]
-		
-		LDR R1, [R2]
-		ORR R1, R1, #0x01 ; turning on D4
-		STR R1, [R2]
-		
-		BX LR
-
-
-UpdateStateLEDs
-		CMP R4, #0
-		BEQ AllOff
-		
-		CMP R4, #1; D1
-		BEQ D4OnD3Off
-		
-		CMP R4, #2; D1 D3
-		BEQ D4OffD3On
-		
-		CMP R4, #3; D1 D3 D4
-		BEQ D4OnD3On
 		
 		BX LR
 		
