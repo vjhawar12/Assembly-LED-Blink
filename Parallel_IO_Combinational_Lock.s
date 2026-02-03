@@ -34,7 +34,11 @@ GPIO_PORTM_DATA_R             EQU     0x400633FC         ;Step 5: GPIO Port L DA
 
 DELAY_CONST					  EQU	  200
 PM3_MASK					  EQU	  0x08
-PRESSED						  EQU	  0x08
+LOCK_CODE					  EQU     0x07
+
+; 	change to pressed 0x00 and released 0x08 if active lo
+	
+PRESSED						  EQU	  0x08 
 RELEASED					  EQU	  0x00
 
 ; This assumes its active hi, swap PRESSED and RELEASED here if its active lo
@@ -130,7 +134,7 @@ WaitForButtonRelease
 		BNE WaitForButtonRelease
 		
 Delay
-		ADD R1, #1	
+		ADD R1, R1, #1	
 		CMP R1, R3
 		BEQ WaitForButtonRelease
 		BNE Delay
@@ -149,7 +153,7 @@ EnterCode
 		LDR R1, =GPIO_PORTM_DATA_R
 		LDR R0, [R1]
 		AND R0, R0, #0x07
-		CMP R0, #0x07
+		CMP R0, #LOCK_CODE
 		BEQ D2OnD1Off
 		BNE D1OnD2Off
 		
