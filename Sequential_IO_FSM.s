@@ -41,7 +41,7 @@ PN0_PN1_MASK				  EQU	  0x03
 PF4_MASK					  EQU     0x10
 PF0_MASK					  EQU     0x01
 PF0_PF4_MASK				  EQU     0x11
-LOCK_CODE			          EQU     0b1011
+LOCK_CODE			          EQU     0x0B  ;0b1011
 PRESSED_LEVEL				  EQU     PM2_MASK ; for active hi, swap to 0x00 for active lo
 RELEASED_LEVEL				  EQU     0x00
 
@@ -135,7 +135,7 @@ Start
 
 		
 Delay
-		ADD R5, #1
+		ADD R5, R5, #1
 		CMP R5, R6
 		BNE Delay
 		LDR R5, =0
@@ -175,14 +175,15 @@ GetValue
 AcceptInput
 		LDR R2, =GPIO_PORTM_DATA_R
 		LDR R3, [R2]
-		AND R3, R3, #PM0_MASK ; change to EOR if active lo else keep AND
+		AND R3, R3, #PM0_MASK 
+		; EOR R3, R3, #PM0_MASK ; add this in addiiton to AND if active lo
 		BL GetValue
 		CMP R3, R8 ; if equal then first digit entered is right
 		BEQ Increment
 		BNE Fail
 		
 Increment ; if increment reaches 4 then 4 correct digits were entered
-		ADD R4, #1
+		ADD R4, R4, #1
 		CMP R4, #4
 		BEQ Win
 		BNE WaitForReleased
@@ -190,17 +191,17 @@ Increment ; if increment reaches 4 then 4 correct digits were entered
 Win ; light up D2 and turn off D1
 		LDR R2, =GPIO_PORTN_DATA_R
 		LDR R1, [R2]
-		AND R1, R1, #0xFD ; turning off D1
+		BIC R1, R1, #0x02 ; turning off D1
 		STR R1, [R2]
-		ORR R1, R1, #0x02 ; turning on D2
+		ORR R1, R1, #0x01 ; turning on D2
 		STR R1, [R2]
 		B Win
 		
 Fail ; light up D1 and turn off D2
 		LDR R2, =GPIO_PORTN_DATA_R
 		LDR R1, [R2]
-		AND R1, R1, #0xFE ; turning off D2
+		BIC R1, R1, #0x01 ; turning off D2
 		STR R1, [R2]
-		ORR R1, R1, #0x01 ; turning on D1
+		ORR R1, R1, #0x02 ; turning on D1
 		STR R1, [R2]
 		B Reset
