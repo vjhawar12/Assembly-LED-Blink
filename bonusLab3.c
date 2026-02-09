@@ -109,7 +109,7 @@ int main(void){
     int dc_offset = (int)((low + high) / 2); // 1.5/3.3 = x/4096 (12 bit ADC)
     int point1 = -1;
     int point2 = -1;
-    float time_between_samples = (delay + 1) / clock_speed; // in s
+    float time_between_samples = (float)(delay + 1) / (float)clock_speed; // in s
     int diff1, diff2;
 	int min_wait = sampling_frequency / (2 * FMAX);
 	if (min_wait < 1) {
