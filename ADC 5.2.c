@@ -76,7 +76,7 @@ uint32_t func_debug[100]; 											// array used to store realtime data
 
 int main(void){
   				
-	uint32_t 	delay = 150000000, // 1000 ms / 6.25 ms = 160 Hz; 6.25ms * 120 000 000 = 750 000; 1.25ms * 120 000 000 = 150000000
+	uint32_t 	delay = 150000, // 1000 ms / 6.25 ms = 160 Hz; 6.25ms * 120 000 000 = 750 000; 1.25ms * 120 000 000 = 150000000
 						count = 0;														// my loop control variable initialized to 0	
 	 
 	PLL_Init();																			// Default Set System Clock to 120MHz
