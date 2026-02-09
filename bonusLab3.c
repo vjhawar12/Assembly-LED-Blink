@@ -15,6 +15,9 @@
 #include "PLL.h"
 #include "SysTick.h"
 
+#define MAX 600
+#define FMAX 100
+
 volatile uint32_t ADCvalue;
 
 //-ADC0_InSeq3-
@@ -71,41 +74,51 @@ void PortN_Init(void){
 }
 
 
-uint32_t func_debug[100];
+uint32_t func_debug[MAX];
 volatile float frequency = 0; 											
 
 int main(void){
 
-    uint32_t sampling_frequency = 500; // 500 hz for example
+    int sampling_frequency = 500; // 500 hz for example
     uint32_t clock_speed = 120000000; // Default Set System Clock to 120MHz
   				
-	uint32_t delay = clock_speed / sampling_frequency;
-    uint32_t count = 0;														
+	int delay = clock_speed / sampling_frequency;
+    int count = 0;
+	uint32_t low = 0xFFFFFFFF, high = 0;														
 	 
 	PLL_Init();																			
 	SysTick_Init();																	
 	ADC_Init();																			
-	PortN_Init();																		
-	while(count < 100){															
+	PortN_Init();
+
+	while(count < MAX){															
 		// GPIO_PORTN_DATA_R ^= 0b00000001; // just for debugging it toggles the LED							
 		SysTick_Wait(delay);									
-		func_debug[count++] = ADC0_InSeq3();					
+		func_debug[count] = ADC0_InSeq3();
+		if (func_debug[count] < low || low == 0) {
+			low = func_debug[count];
+		}
+		if (func_debug[count] > high || high == 0) {
+			high = func_debug[count];
+		}
+		count++;										
 	}
+
 	
 	int i = 1; 
-	int max = 100;
-    int dc_offset = 1861; // 1.5/3.3 = x/4096 (12 bit ADC)
-    int tolerance = 4; // ADC counts
-	
+    int dc_offset = (int)((low + high) / 2); // 1.5/3.3 = x/4096 (12 bit ADC)
     int point1 = -1;
     int point2 = -1;
     float time_between_samples = 1.0f / sampling_frequency; // in s
     int diff1, diff2;
-	int min_wait = 2;
+	int min_wait = sampling_frequency / (2 * FMAX);
+	if (min_wait < 1) {
+		min_wait = 1;
+	}
 
     // add sign change about the midpoint
 
-	for (i; i < max; i++) {
+	for (i; i < MAX; i++) {
 		diff1 = dc_offset - func_debug[i]; // Current difference, > 0 if coming from under
 		diff2 = dc_offset - func_debug[i - 1]; // previous difference 
 		
