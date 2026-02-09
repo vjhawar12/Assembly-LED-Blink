@@ -95,34 +95,35 @@ int main(void){
 	int i = 1; 
 	int max = 100;
     int dc_offset = 1861; // 1.5/3.3 = x/4096 (12 bit ADC)
-    float tolerance = 4; // ADC counts
+    int tolerance = 4; // ADC counts
 	
     int point1 = -1;
     int point2 = -1;
-    int time_between_samples = 1000 / sampling_frequency; // in ms
-    int min_wait = 30;
-    int diff;
+    float time_between_samples = 1.0f / sampling_frequency; // in s
+    int diff1, diff2;
+	int min_wait = 2;
 
     // add sign change about the midpoint
-    
+
 	for (i; i < max; i++) {
-        diff = dc_offset - func_debug[i];
-        if (diff < 0) {diff *= -1;}
-        if (diff <= tolerance) {
-            if (point1 == -1) {
-                point1 = i; 
-            } else if (point2 == -1 && i - point1 > min_wait && func_debug[i] - func_debug[i - 1] < 0) {
-                point2 = i;
-            }
-        }
-        if (point2 != -1 && point1 != -1) {
-            break;
-        }
+		diff1 = dc_offset - func_debug[i]; // Current difference, > 0 if coming from under
+		diff2 = dc_offset - func_debug[i - 1]; // previous difference 
+		
+		if (point1 == -1 && diff1 > 0 && diff2 < 0) { // falling edge 
+			point1 = i;
+		} else if (point2 == -1 && diff2 > 0 && diff1 < 0 && (i - point1) >= min_wait) { // rising edge
+			point2 = i;
+			break;
+		}	
 	} 
+
+	if (point1 == -1 || point2 == -1) {
+		frequency = -1;
+		while (1) {}
+	}
 	
-    uint32_t half_period = (point2 - point1) * time_between_samples;
-    uint32_t period = half_period * 2;
-	frequency = 1000.0f / period;
+    float period = 2.0f * (point2 - point1) * time_between_samples;
+	frequency = 1.0f / period;
 
     while (1) {}
 }
