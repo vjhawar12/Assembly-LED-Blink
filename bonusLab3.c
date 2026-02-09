@@ -95,10 +95,10 @@ int main(void){
 		// GPIO_PORTN_DATA_R ^= 0b00000001; // just for debugging it toggles the LED							
 		SysTick_Wait(delay);									
 		func_debug[count] = ADC0_InSeq3();
-		if (func_debug[count] < low || low == 0) {
+		if (func_debug[count] < low) {
 			low = func_debug[count];
 		}
-		if (func_debug[count] > high || high == 0) {
+		if (func_debug[count] > high) {
 			high = func_debug[count];
 		}
 		count++;										
@@ -109,7 +109,7 @@ int main(void){
     int dc_offset = (int)((low + high) / 2); // 1.5/3.3 = x/4096 (12 bit ADC)
     int point1 = -1;
     int point2 = -1;
-    float time_between_samples = 1.0f / sampling_frequency; // in s
+    float time_between_samples = (delay + 1) / clock_speed; // in s
     int diff1, diff2;
 	int min_wait = sampling_frequency / (2 * FMAX);
 	if (min_wait < 1) {
@@ -119,8 +119,11 @@ int main(void){
     // add sign change about the midpoint
 
 	for (i; i < MAX; i++) {
-		diff1 = dc_offset - func_debug[i]; // Current difference, > 0 if coming from under
-		diff2 = dc_offset - func_debug[i - 1]; // previous difference 
+		int s1 = (int)func_debug[i];
+		int s0 = (int)func_debug[i - 1];
+
+		diff1 = dc_offset - s1; // Current difference, > 0 if coming from under
+		diff2 = dc_offset - s0; // previous difference 
 		
 		if (point1 == -1 && diff1 > 0 && diff2 < 0) { // falling edge 
 			point1 = i;
