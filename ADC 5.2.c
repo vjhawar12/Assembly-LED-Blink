@@ -41,7 +41,6 @@ void ADC_Init(void){
 	GPIO_PORTE_DEN_R &= ~0x10;											// 4) disable digital I/O on PE4   
 	GPIO_PORTE_AMSEL_R |= 0x10;											// 5) enable analog function on PE4   
 	SYSCTL_RCGCADC_R |= 0x01;											// 6) activate ADC0
-	while((SYSCTL_PRADC_R & 0x01) == 0){};                              //waiting for ADC to be ready
 	ADC0_PC_R = 0x01;																// 7) maximum speed is 125K samples/sec   
 	ADC0_SSPRI_R = 0x0123;													// 8) Sequencer 3 is highest priority   
 	ADC0_ACTSS_R &= ~0x0008;												// 9) disable sample sequencer 3   
