@@ -1,14 +1,7 @@
-// 2DX4StudioW20E1_ADCDemo
 // This program illustrates the use of the ADC in the C language.
 // Note the library headers asscoaited are PLL.h and SysTick.h,
 // which define functions and variables used in PLL.c and SysTick.c.
 // This program uses code directly from your course textbook.
-//
-// This example will be extended for in W21E0 and W21E1.
-//
-//  Written by Tom Doyle
-//  January 18, 2020
-//  Last Update: January 21, 2020
 
 #include <stdint.h>
 #include "tm4c1294ncpdt.h"
